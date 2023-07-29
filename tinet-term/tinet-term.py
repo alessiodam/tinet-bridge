@@ -18,17 +18,19 @@ if USERNAME is None or TOKEN is None:
 
 
 def receive_response(sock):
-    # Set a timeout of 1 second for receiving data
-    sock.settimeout(1.0)
+    sock.settimeout(0.1)
     try:
         response = sock.recv(4096).decode().strip()
-        if response == "SERVER_PONG":
+        if response.startswith("RTC_CHAT:"):
+            print(Fore.MAGENTA + "Received RTC_CHAT:", response[len("RTC_CHAT:"):])
+        elif response == "SERVER_PONG":
             print(Fore.CYAN + "Received SERVER_PONG")
         else:
             print(Fore.GREEN + "Received:", response)
         return response
     except socket.timeout:
         return None
+
 
 
 def command_help():
@@ -50,24 +52,26 @@ def main():
         sock.connect((SERVER_ADDRESS, SERVER_PORT))
         print(Fore.GREEN + f"Connected to {SERVER_ADDRESS}:{SERVER_PORT} !")
 
-        sock.sendall("SERIAL_CONNECTED".encode())
-        receive_response(sock)
+        print(Fore.YELLOW + "Logging in..")
+        sock.send("SERIAL_CONNECTED".encode())
+        sock.recv(4096)
 
-        sock.sendall(f"USERNAME:{USERNAME}".encode())
-        receive_response(sock)
+        sock.send(f"USERNAME:{USERNAME}".encode())
+        sock.recv(4096)
 
-        sock.sendall(f"TOKEN:{TOKEN}".encode())
-        loggedIn = receive_response(sock)
+        sock.send(f"TOKEN:{TOKEN}".encode())
+        loggedIn = sock.recv(4096).decode()
+
         if loggedIn != "LOGIN_SUCCESS":
             print(Fore.RED + "Login failed!")
             print(Fore.RED + loggedIn)
             sys.exit(1)
+        print(Fore.GREEN + "Logged in as", USERNAME)
 
         print(Fore.CYAN + f"You are now connected to the socket server at {SERVER_ADDRESS}:{SERVER_PORT}.")
         print("Type your commands, and press Enter to send.")
         print("Type '?' to show a list of available commands.")
 
-        # Set the CTRL-C handler
         signal.signal(signal.SIGINT, sigint_handler)
 
         while True:
@@ -84,17 +88,14 @@ def main():
             elif user_input == "?":
                 command_help()
             else:
-                sock.send(user_input.encode())
+                sock.send(user_input.encode())  # Encode the user input as bytes
                 receive_response(sock)
 
     except KeyboardInterrupt:
         print(Fore.RED + "CTRL-C received. Command cancelled.")
-    except Exception as e:
-        print(Fore.RED + "An error occurred:", e)
     finally:
         sock.close()
         print(Fore.CYAN + "Socket connection closed.")
-
 
 if __name__ == "__main__":
     main()
