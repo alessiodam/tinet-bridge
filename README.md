@@ -4,7 +4,7 @@ This program makes the connection between your calculator and our main servers p
 
 ## How to use
 1. Clone this repository using `git clone https://github.com/tkbstudios/tinet-bridge`
-2. Go to your cloned repository and run `pip3 install pyserial` inside your terminal (You need python3.11 and pip3 installed)
+2. Go to your cloned repository and run `pip3 install -r requirements.txt` inside your terminal (You need python3.11 and pip3 installed)
 3. When pyserial has been installed, open the [TINET] program on your calculator.
 4. When [TINET] has been opened, connect TINET to the machine you cloned the repository to.
 5. If there's a little icon that looks like a USB and a checkmark, go ahead, if it is another icon, open an Issue [here](https://github.com/tkbstudios/ti84pluscenet-calc/issues)
