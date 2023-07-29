@@ -12,6 +12,7 @@ SERVER_PORT = 2052
 
 USERNAME = dotenv.get_key(key_to_get="USERNAME", dotenv_path=".env")
 TOKEN = dotenv.get_key(key_to_get="TOKEN", dotenv_path=".env")
+
 if USERNAME is None or TOKEN is None:
     print(Fore.RED + "Username or token could not be loaded!")
 
