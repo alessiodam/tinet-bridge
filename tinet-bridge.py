@@ -129,10 +129,13 @@ def list_serial_ports():
 
 
 def select_serial_port(ports):
-    selected_index = int(
-        input("Enter the number of the serial device you want to select: ")) - 1
-    if 0 <= selected_index < len(ports):
-        return ports[selected_index]
+    selected_index = input("Enter the number of the serial device you want to select: ")
+    # if selected_index == "":
+    #     gracefully exit somehow?
+    if selected_index in [str(x + 1) for x in range(len(ports))]:
+        port_number = int(selected_index) - 1
+        print(port_number)
+        return ports[port_number]
     else:
         print("Invalid selection. Please try again.")
         return select_serial_port(ports)
