@@ -112,8 +112,14 @@ if __name__ == "__main__":
                     serial_connection = serial.Serial("/dev/ttyACM0", baudrate=9600, timeout=3)
                     if serial_connection.is_open:
                         break
-                except serial.SerialException:
-                    pass
+                except serial.SerialException as err:
+                    if err.errno == 13:
+                            print("Missing USB permissions, please add them: ")
+                            print("sudo groupadd dailout")
+                            print("sudo usermod -a -G dialout $USER")
+                            print("sudo chmod a+rw /dev/TTYACM0")
+                            sys.exit(1)
+                    
         else:
             available_ports = list_serial_ports()
             selected_port_info = select_serial_port(available_ports)
@@ -123,6 +129,14 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         CleanExit(serial_connection=serial_connection, server_client_sock=None,
                   reason="\nReceived CTRL+C! Exiting cleanly...")
+        
+    except serial.SerialException as err:
+        if err.errno == 13:
+                print("Missing USB permissions, please add them: ")
+                print("sudo groupadd dailout")
+                print("sudo usermod -a -G dialout $USER")
+                print("sudo chmod a+rw /dev/TTYACM0")
+                sys.exit(1)
 
     print("\rCreating TCP socket...                      ", end="")
 
