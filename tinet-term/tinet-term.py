@@ -20,17 +20,20 @@ if USERNAME is None or TOKEN is None:
 def receive_response(sock):
     sock.settimeout(0.1)
     try:
-        response = sock.recv(4096).decode().strip()
-        if response.startswith("RTC_CHAT:"):
-            print(Fore.MAGENTA + "Received RTC_CHAT:", response[len("RTC_CHAT:"):])
-        elif response == "SERVER_PONG":
-            print(Fore.CYAN + "Received SERVER_PONG")
-        else:
-            print(Fore.GREEN + "Received:", response)
-        return response
+        response = sock.recv(4096)
+        try:
+            decoded_response = response.decode('utf-8').strip()
+            if decoded_response.startswith("RTC_CHAT:"):
+                print(Fore.MAGENTA + "Received RTC_CHAT:", decoded_response[len("RTC_CHAT:"):])
+            elif decoded_response == "SERVER_PONG":
+                print(Fore.CYAN + "Received SERVER_PONG")
+            else:
+                print(Fore.GREEN + "Received:", decoded_response)
+            return decoded_response
+        except UnicodeDecodeError:
+            print(Fore.YELLOW + "Received non-UTF-8 bytes:", response)
     except socket.timeout:
         return None
-
 
 
 def command_help():
