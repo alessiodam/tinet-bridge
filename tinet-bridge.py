@@ -14,7 +14,7 @@ TCP_PORT = 2052
 DEBUG = True
 
 # Retry the default rpi0W2 port (/dev/ttyACM0) forever if it fails.
-RETRY_DEFAULT_PORT_FOREVER = True
+RETRY_DEFAULT_PORT_FOREVER = False
 
 
 # -END BRIDGE CONFIG-#
