@@ -123,6 +123,12 @@ if __name__ == "__main__":
                     
         else:
             available_ports = list_serial_ports()
+
+            while len(available_ports) == 0:
+                print("No devices detected! Is your calculator connected?")
+                available_ports = list_serial_ports()
+                time.sleep(1)
+            
             selected_port_info = select_serial_port(available_ports)
             serial_connection = serial.Serial(selected_port_info.device, baudrate=9600, timeout=3)
             print(f"Connected to: {serial_connection.portstr}")
