@@ -143,32 +143,3 @@ if __name__ == "__main__":
         if err.errno == 13:
             logging.debug("Missing USB permissions, please add them: ")
             logging.debug("sudo groupadd dailout")
-            logging.debug("sudo usermod -a -G dialout $USER")
-            logging.debug("sudo chmod a+rw /dev/TTYACM0")
-            sys.exit(1)
-
-    logging.debug("Serial started successfully!")
-
-    while True:
-        try:
-            logging.debug("Connecting to server...")
-            server_client_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            server_client_sock.connect((TCP_HOST, TCP_PORT))
-            logging.debug("Connected to server!")
-            break
-        except socket.error as e:
-            logging.debug(f"Failed to connect to server: {str(e)}")
-            time.sleep(1)
-
-    server_client_sock.settimeout(3)
-
-    logging.debug("Starting read threads...")
-    threading.Thread(target=serial_read, args=(serial_connection, server_client_sock), daemon=True).start()
-    threading.Thread(target=server_read, args=(serial_connection, server_client_sock), daemon=True).start()
-
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        CleanExit(serial_connection=serial_connection, server_client_sock=server_client_sock,
-                  reason="\nReceived CTRL+C! Exiting cleanly...")
