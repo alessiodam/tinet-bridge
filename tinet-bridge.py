@@ -1,36 +1,34 @@
+import logging
+import os
 import serial
-from serial.tools import list_ports
 import socket
 import sys
-import time
 import threading
-import os
+import time
+from serial.tools import list_ports
 
 # ---BRIDGE CONFIG---#
-
 TCP_HOST = 'tinethub.tkbstudios.com'
 TCP_PORT = 2052
-
 DEBUG = True
-
-# Retry the default rpi0W2 port (/dev/ttyACM0) forever if it fails.
 RETRY_DEFAULT_PORT_FOREVER = False
-
-
 # -END BRIDGE CONFIG-#
 
+logging.basicConfig(level=logging.DEBUG)
+
+
 def updateBridge():
-    print("Pulling latest files...")
+    logging.debug("Pulling latest files...")
     os.system("git config pull.ff only")
     os.system("git pull")
 
 
 def CleanExit(serial_connection, server_client_sock, reason):
-    print(str(reason))
-    print("Notifying client bridge got disconnected!")
+    logging.debug(str(reason))
+    logging.debug("Notifying client bridge got disconnected!")
     serial_connection.write("bridgeDisconnected".encode())
     serial_connection.write("internetDisconnected".encode())
-    print("Notified client bridge got disconnected!")
+    logging.debug("Notified client bridge got disconnected!")
     serial_connection.close()
     server_client_sock.close()
     sys.exit(0)
@@ -41,20 +39,20 @@ def serial_read(serial_connection, server_client_sock):
         data = bytes()
         try:
             data = serial_connection.read(serial_connection.in_waiting)
-        except Exception as e:
+        except serial.SerialException as e:
             CleanExit(serial_connection, server_client_sock, str(e))
 
         if data:
             decoded_data = data.decode().replace("/0", "").replace("\0", "")
             if DEBUG:
-                print(f'R - serial - ED: {data}')
-            print(f'R - serial: {decoded_data}')
+                logging.debug(f'R - serial - ED: {data}')
+            logging.debug(f'R - serial: {decoded_data}')
 
             try:
                 server_client_sock.send(decoded_data.encode())
-            except Exception as e:
+            except socket.error as e:
                 CleanExit(serial_connection, server_client_sock, str(e))
-            print(f'W - server: {decoded_data}')
+            logging.debug(f'W - server: {decoded_data}')
 
 
 def server_read(serial_connection, server_client_sock):
@@ -63,20 +61,20 @@ def server_read(serial_connection, server_client_sock):
             server_response = server_client_sock.recv(4096)
         except socket.timeout:
             continue
-        except Exception as e:
+        except socket.error as e:
             CleanExit(serial_connection, server_client_sock, str(e))
 
         decoded_server_response = server_response.decode()
 
         if DEBUG:
-            print(f'R - server - ED: {server_response}')
-        print(f'R - server: {decoded_server_response}')
+            logging.debug(f'R - server - ED: {server_response}')
+        logging.debug(f'R - server: {decoded_server_response}')
 
         try:
             serial_connection.write(decoded_server_response.encode())
-        except Exception as e:
+        except serial.SerialException as e:
             CleanExit(serial_connection, server_client_sock, str(e))
-        print(f'W - serial: {decoded_server_response}')
+        logging.debug(f'W - serial: {decoded_server_response}')
 
         if decoded_server_response == "DISCONNECT":
             CleanExit(serial_connection, server_client_sock, f"Received {decoded_server_response} from server")
@@ -85,7 +83,7 @@ def server_read(serial_connection, server_client_sock):
 def list_serial_ports():
     ports = list_ports.comports()
     for i, port in enumerate(ports):
-        print(f"{i + 1}. {port.device} - {port.description}")
+        logging.debug(f"{i + 1}. {port.device} - {port.description}")
     return ports
 
 
@@ -93,95 +91,84 @@ def select_serial_port(ports):
     while True:
         selected_index = input("Enter the number of the serial device you want to select: ")
         if selected_index == "":
-            print("Please select a valid port!")
+            logging.debug("Please select a valid port!")
             sys.exit(1)
         if selected_index in [str(x + 1) for x in range(len(ports))]:
             port_number = int(selected_index) - 1
-            print(port_number)
+            logging.debug(port_number)
             return ports[port_number]
         else:
-            print("Invalid selection. Please try again.")
+            logging.debug("Invalid selection. Please try again.")
 
 
 if __name__ == "__main__":
-    print("\rInitiating serial...\n")
+    logging.debug("\rInitiating serial...\n")
 
     try:
         if RETRY_DEFAULT_PORT_FOREVER:
             while True:
-                print("Trying default netbridge port...")
+                logging.debug("Trying default netbridge port...")
                 try:
                     serial_connection = serial.Serial("/dev/ttyACM0", baudrate=9600, timeout=3)
                     if serial_connection.is_open:
                         break
                 except serial.SerialException as err:
                     if err.errno == 13:
-                            print("Missing USB permissions, please add them: ")
-                            print("sudo groupadd dailout")
-                            print("sudo usermod -a -G dialout $USER")
-                            print("sudo chmod a+rw /dev/TTYACM0")
-                            sys.exit(1)
-                    
+                        logging.debug("Missing USB permissions, please add them: ")
+                        logging.debug("sudo groupadd dailout")
+                        logging.debug("sudo usermod -a -G dialout $USER")
+                        logging.debug("sudo chmod a+rw /dev/TTYACM0")
+                        sys.exit(1)
+
         else:
             available_ports = list_serial_ports()
 
             try:
                 while len(available_ports) == 0:
-                    print("No devices detected! Is your calculator connected?")
+                    logging.debug("No devices detected! Is your calculator connected?")
                     available_ports = list_serial_ports()
                     time.sleep(1)
             except KeyboardInterrupt:
                 sys.exit(0)
-            
+
             selected_port_info = select_serial_port(available_ports)
             serial_connection = serial.Serial(selected_port_info.device, baudrate=9600, timeout=3)
-            print(f"Connected to: {serial_connection.portstr}")
+            logging.debug(f"Connected to: {serial_connection.portstr}")
 
     except KeyboardInterrupt:
         CleanExit(serial_connection=serial_connection, server_client_sock=None,
                   reason="\nReceived CTRL+C! Exiting cleanly...")
-        
+
     except serial.SerialException as err:
         if err.errno == 13:
-                print("Missing USB permissions, please add them: ")
-                print("sudo groupadd dailout")
-                print("sudo usermod -a -G dialout $USER")
-                print("sudo chmod a+rw /dev/TTYACM0")
-                sys.exit(1)
+            logging.debug("Missing USB permissions, please add them: ")
+            logging.debug("sudo groupadd dailout")
+            logging.debug("sudo usermod -a -G dialout $USER")
+            logging.debug("sudo chmod a+rw /dev/TTYACM0")
+            sys.exit(1)
 
-    print("\rCreating TCP socket...                      ", end="")
+    logging.debug("Serial started successfully!")
 
-    server_client_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_client_sock.settimeout(10)
+    while True:
+        try:
+            logging.debug("Connecting to server...")
+            server_client_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            server_client_sock.connect((TCP_HOST, TCP_PORT))
+            logging.debug("Connected to server!")
+            break
+        except socket.error as e:
+            logging.debug(f"Failed to connect to server: {str(e)}")
+            time.sleep(1)
 
-    print("\rConnecting to TCP socket...                      ", end="")
+    server_client_sock.settimeout(3)
+
+    logging.debug("Starting read threads...")
+    threading.Thread(target=serial_read, args=(serial_connection, server_client_sock), daemon=True).start()
+    threading.Thread(target=server_read, args=(serial_connection, server_client_sock), daemon=True).start()
 
     try:
-        server_client_sock.connect((TCP_HOST, TCP_PORT))
-    except socket.error as e:
-        CleanExit(serial_connection, server_client_sock, f"Failed to connect to the server: {e}")
-
-    print("\rNotifying serial client he is connected to the bridge...                      ", end="")
-
-    serial_connection.write("bridgeConnected\0".encode())
-    print("\rClient got notified he was connected to the bridge!                      ", end="")
-
-    # Add delay to prevent the client from not seeing the SERIAL_CONNECTED_CONFIRMED message
-    time.sleep(1)
-
-    print("\rReading data from serial device...                      ")
-    try:
-        serial_read_thread = threading.Thread(target=serial_read, args=(serial_connection, server_client_sock))
-        serial_read_thread.name = "SERIAL_READ_THREAD"
-        serial_read_thread.start()
-
-        server_read_thread = threading.Thread(target=server_read, args=(serial_connection, server_client_sock))
-        server_read_thread.name = "SERVER_READ_THREAD"
-        server_read_thread.start()
-
-        serial_read_thread.join()
-        server_read_thread.join()
-
+        while True:
+            time.sleep(1)
     except KeyboardInterrupt:
         CleanExit(serial_connection=serial_connection, server_client_sock=server_client_sock,
                   reason="\nReceived CTRL+C! Exiting cleanly...")
