@@ -16,13 +16,7 @@ DEBUG = True
 # Retry the default rpi0W2 port (/dev/ttyACM0) forever if it fails.
 RETRY_DEFAULT_PORT_FOREVER = False
 
-
 # -END BRIDGE CONFIG-#
-
-def updateBridge():
-    print("Pulling latest files...")
-    os.system("git config pull.ff only")
-    os.system("git pull")
 
 
 def CleanExit(serial_connection, server_client_sock, reason):
@@ -36,13 +30,13 @@ def CleanExit(serial_connection, server_client_sock, reason):
     sys.exit(0)
 
 
-def serial_read(serial_connection, server_client_sock):
+def serial_read(serial_connection_srl_read, server_client_sock_srl_read):
     while True:
         data = bytes()
         try:
-            data = serial_connection.read(serial_connection.in_waiting)
-        except Exception as e:
-            CleanExit(serial_connection, server_client_sock, str(e))
+            data = serial_connection_srl_read.read(serial_connection_srl_read.in_waiting)
+        except Exception as srl_read_exception:
+            CleanExit(serial_connection, server_client_sock, str(srl_read_exception))
 
         if data:
             decoded_data = data.decode().replace("/0", "").replace("\0", "")
@@ -51,20 +45,21 @@ def serial_read(serial_connection, server_client_sock):
             print(f'R - serial: {decoded_data}')
 
             try:
-                server_client_sock.send(decoded_data.encode())
+                server_client_sock_srl_read.send(decoded_data.encode())
             except Exception as e:
-                CleanExit(serial_connection, server_client_sock, str(e))
+                CleanExit(serial_connection, server_client_sock_srl_read, str(e))
             print(f'W - server: {decoded_data}')
 
 
-def server_read(serial_connection, server_client_sock):
+def server_read(serial_connection_server_read, server_client_sock_server_read):
     while True:
+        server_response = bytes()
         try:
-            server_response = server_client_sock.recv(4096)
+            server_response = server_client_sock_server_read.recv(4096)
         except socket.timeout:
             continue
-        except Exception as e:
-            CleanExit(serial_connection, server_client_sock, str(e))
+        except Exception as server_read_exception:
+            CleanExit(serial_connection, server_client_sock_server_read, str(server_read_exception))
 
         decoded_server_response = server_response.decode()
 
@@ -116,11 +111,16 @@ if __name__ == "__main__":
                         break
                 except serial.SerialException as err:
                     if err.errno == 13:
-                            print("Missing USB permissions, please add them: ")
-                            print("sudo groupadd dailout")
-                            print("sudo usermod -a -G dialout $USER")
-                            print("sudo chmod a+rw /dev/TTYACM0")
-                            sys.exit(1)
+                        print("Missing USB permissions, please add them: ")
+                        print("sudo groupadd dailout")
+                        print("sudo usermod -a -G dialout $USER")
+                        print(f"sudo chmod a+rw /dev/ttyACM0")
+                        user_response = input("Add the permissions autmatically? (y or n): ").lower()
+                        if user_response == "y":
+                            os.system("sudo groupadd dailout")
+                            os.system("sudo usermod -a -G dialout $USER")
+                            os.system("sudo chmod a+rw {serial_connection.portstr}")
+                        sys.exit(1)
 
         else:
             available_ports = list_serial_ports()
@@ -146,7 +146,12 @@ if __name__ == "__main__":
                 print("Missing USB permissions, please add them: ")
                 print("sudo groupadd dailout")
                 print("sudo usermod -a -G dialout $USER")
-                print("sudo chmod a+rw /dev/TTYACM0")
+                print(f"sudo chmod a+rw {serial_connection.portstr}")
+                user_response = input("Add the permissions autmatically? (y or n): ").lower()
+                if user_response == "y":
+                    os.system("sudo groupadd dailout")
+                    os.system("sudo usermod -a -G dialout $USER")
+                    os.system("sudo chmod a+rw {serial_connection.portstr}")
                 sys.exit(1)
 
     print("\rCreating TCP socket...                      ", end="")
