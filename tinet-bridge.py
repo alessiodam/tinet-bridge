@@ -112,12 +112,12 @@ if __name__ == "__main__":
                 except serial.SerialException as err:
                     if err.errno == 13:
                         print("Missing USB permissions, please add them: ")
-                        print("sudo groupadd dailout")
+                        print("sudo groupadd dialout")
                         print("sudo usermod -a -G dialout $USER")
                         print(f"sudo chmod a+rw /dev/ttyACM0")
                         user_response = input("Add the permissions autmatically? (y or n): ").lower()
                         if user_response == "y":
-                            os.system("sudo groupadd dailout")
+                            os.system("sudo groupadd dialout")
                             os.system("sudo usermod -a -G dialout $USER")
                             os.system("sudo chmod a+rw {serial_connection.portstr}")
                         sys.exit(1)
