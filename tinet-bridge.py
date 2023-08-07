@@ -277,9 +277,6 @@ def main():
                 selected_port = select_serial_port()
             else:
                 selected_port = find_serial_port()
-            
-            serial_connection = serial.Serial(selected_port.device, baudrate=9600, timeout=3)
-            print(f"Connected to: {serial_connection.portstr}")
 
         except serial.SerialException as err:
             if err.errno == 13:
