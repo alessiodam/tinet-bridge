@@ -22,7 +22,7 @@ DEBUG = True
 MANUAL_PORT = False
 # -------END CONFIG------- #
 
-logging.basicConfig(filename=f"log-{round(time.time())}",
+logging.basicConfig(filename=f"log-{round(time.time())}.log",
                     filemode='a',
                     format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
                     datefmt='%H:%M:%S',
