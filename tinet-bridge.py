@@ -9,15 +9,26 @@ import serial
 import serial.threaded
 import time
 from serial.tools import list_ports
+import logging
 
 init(autoreset=True)
 
+# ---------CONFIG--------- #
 SERVER_ADDRESS = "tinethub.tkbstudios.com"
 SERVER_PORT = 2052
 
 SERIAL = True
 DEBUG = True
 MANUAL_PORT = False
+# -------END CONFIG------- #
+
+logging.basicConfig(filename=f"log-{round(time.time())}",
+                    filemode='a',
+                    format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
+                    datefmt='%H:%M:%S',
+                    level=logging.DEBUG)
+
+logger = logging.getLogger()
 
 CALC_ID = dotenv.get_key(key_to_get="CALC_ID", dotenv_path=".env")
 USERNAME = dotenv.get_key(key_to_get="USERNAME", dotenv_path=".env")
@@ -83,6 +94,9 @@ class SocketThread(threading.Thread):
                 print(f"Error: {e}")
                 self.stop()
 
+            if server_response is None or server_response == b"":
+                logging.error(server_response)
+                self.stop()
             decoded_server_response = server_response.decode()
 
             if DEBUG:
@@ -94,8 +108,8 @@ class SocketThread(threading.Thread):
             
             print(f'W - serial: {decoded_server_response}')
 
-            # if decoded_server_response == "DISCONNECT":
-            #     self.stop()
+            if decoded_server_response == "DISCONNECT":
+                self.stop()
 
     def write(self, data):
         """Thread safe writing (uses lock)"""
@@ -157,8 +171,11 @@ class SerialThread(threading.Thread):
                         pass
             else:
                 if data:
+                    if data is None or data == b"":
+                        logging.error("Data issue")
                     # make a separated try-except for called user code
                     decoded_data = data.decode().replace("/0", "").replace("\0", "")
+                    logging.debug(decoded_data)
                     if DEBUG:
                         print(f'R - serial - ED: {data}')
                     print(f'R - serial: {decoded_data}')
