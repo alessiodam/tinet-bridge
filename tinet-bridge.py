@@ -98,6 +98,7 @@ class SocketThread(threading.Thread):
                 logging.error(server_response)
                 self.stop()
             decoded_server_response = server_response.decode()
+            logging.debug(decoded_server_response)
 
             if DEBUG:
                 print(f'R - server - ED: {server_response}')
