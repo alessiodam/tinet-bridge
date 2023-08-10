@@ -2,6 +2,7 @@
 
 Create a .env file (tinet-term dir) with the following structure:
 ```
+CALC_ID=calcid
 USERNAME=username
 TOKEN=token
 ```

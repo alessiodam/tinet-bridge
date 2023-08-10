@@ -7,14 +7,15 @@ import signal
 
 init(autoreset=True)
 
-SERVER_ADDRESS = "tinethub.tkbstudios.com"
+SERVER_ADDRESS = "127.0.0.1"
 SERVER_PORT = 2052
 
+CALC_ID = dotenv.get_key(key_to_get="CALC_ID", dotenv_path=".env")
 USERNAME = dotenv.get_key(key_to_get="USERNAME", dotenv_path=".env")
 TOKEN = dotenv.get_key(key_to_get="TOKEN", dotenv_path=".env")
 
-if USERNAME is None or TOKEN is None:
-    print(Fore.RED + "Username or token could not be loaded!")
+if CALC_ID is None or USERNAME is None or TOKEN is None:
+    print(Fore.RED + "Calc ID, username or token could not be loaded!")
 
 
 def receive_response(sock):
@@ -59,13 +60,11 @@ def main():
         sock.send("SERIAL_CONNECTED".encode())
         sock.recv(4096)
 
-        sock.send(f"USERNAME:{USERNAME}".encode())
-        sock.recv(4096)
-
-        sock.send(f"TOKEN:{TOKEN}".encode())
-        loggedIn = sock.recv(4096).decode()
+        sock.send(f"LOGIN:{CALC_ID}:{USERNAME}:{TOKEN}".encode())
+        loggedIn = sock.recv(4096).decode().strip()
 
         if loggedIn != "LOGIN_SUCCESS":
+            print(loggedIn)
             print(Fore.RED + "Login failed!")
             print(Fore.RED + loggedIn)
             sys.exit(1)
