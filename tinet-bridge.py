@@ -19,11 +19,13 @@ SERIAL = True
 DEBUG = True
 MANUAL_PORT = False
 
+CALC_ID = dotenv.get_key(key_to_get="CALC_ID", dotenv_path=".env")
 USERNAME = dotenv.get_key(key_to_get="USERNAME", dotenv_path=".env")
 TOKEN = dotenv.get_key(key_to_get="TOKEN", dotenv_path=".env")
 
-if USERNAME is None or TOKEN is None:
-    print(Fore.RED + "Username or token could not be loaded!")
+if CALC_ID is None or USERNAME is None or TOKEN is None:
+    print(Fore.RED + "calc ID, username or token could not be loaded from .env!")
+
 
 def find_serial_port():
     while True:
@@ -55,7 +57,7 @@ class SocketThread(threading.Thread):
         self.join()
 
     def run(self):
-        while self.serial_manager == None:
+        while self.serial_manager is None:
             pass
 
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -99,6 +101,7 @@ class SocketThread(threading.Thread):
         """Thread safe writing (uses lock)"""
         with self._lock:
             return self.socket.send(data)
+
 
 class SerialThread(threading.Thread):
     """Manages serial connection"""
@@ -239,12 +242,14 @@ def sigint_handler(sig, frame):
     print(Fore.RED + "\nCommand cancelled.")
     raise KeyboardInterrupt
 
+
 # Returns all avaiable ports and prints them
 def list_serial_ports():
     ports = list_ports.comports()
     for i, port in enumerate(ports):
         print(f"{i + 1}. {port.device} - {port.description}")
     return ports
+
 
 # Prompts user to select a serial port
 def select_serial_port():
@@ -266,6 +271,7 @@ def select_serial_port():
             return ports[port_number]
         else:
             print("Invalid selection. Please try again.")
+
 
 def main():
     if SERIAL:
@@ -314,11 +320,8 @@ def main():
         sock.send("SERIAL_CONNECTED".encode())
         sock.recv(4096)
 
-        sock.send(f"USERNAME:{USERNAME}".encode())
-        sock.recv(4096)
-
-        sock.send(f"TOKEN:{TOKEN}".encode())
-        loggedIn = sock.recv(4096).decode()
+        sock.send(f"LOGIN:{CALC_ID}:{USERNAME}:{TOKEN}".encode())
+        loggedIn = sock.recv(4096).decode().strip()
 
         if loggedIn != "LOGIN_SUCCESS":
             print(Fore.RED + "Login failed!")
