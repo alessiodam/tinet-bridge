@@ -7,7 +7,7 @@ import signal
 
 init(autoreset=True)
 
-SERVER_ADDRESS = "127.0.0.1"
+SERVER_ADDRESS = "tinethub.tkbstudios.com"
 SERVER_PORT = 2052
 
 CALC_ID = dotenv.get_key(key_to_get="CALC_ID", dotenv_path=".env")
