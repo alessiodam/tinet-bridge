@@ -85,7 +85,7 @@ class SocketThread(threading.Thread):
         self.serial_manager.write("bridgeConnected\0".encode())
         print("Client got notified he was connected to the bridge!")
 
-        while True:
+        while self.alive:
             server_response = bytes()
             try:
                 server_response = self.socket.recv(4096)
