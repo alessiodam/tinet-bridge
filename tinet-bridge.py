@@ -20,7 +20,7 @@ SERVER_PORT = 2052
 SERIAL = True
 DEBUG = True
 MANUAL_PORT = False
-ENABLE_RECONNECT = False
+ENABLE_RECONNECT = True
 # -------END CONFIG------- #
 
 logging.basicConfig(filename=f"log-{round(time.time())}.log",
