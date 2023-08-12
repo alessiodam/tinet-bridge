@@ -111,7 +111,7 @@ class SocketThread(threading.Thread):
             print(f'W - serial: {decoded_server_response}')
 
             if decoded_server_response == "DISCONNECT":
-                self.stop()
+                self.alive = False
 
     def write(self, data):
         """Thread safe writing (uses lock)"""
@@ -174,7 +174,6 @@ class SerialThread(threading.Thread):
                             pass
                 else:
                     self.alive = False
-                    self.stop()
                     pass
             else:
                 if data:
