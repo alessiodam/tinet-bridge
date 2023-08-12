@@ -20,6 +20,7 @@ SERVER_PORT = 2052
 SERIAL = True
 DEBUG = True
 MANUAL_PORT = False
+ENABLE_RECONNECT = False
 # -------END CONFIG------- #
 
 logging.basicConfig(filename=f"log-{round(time.time())}.log",
@@ -156,20 +157,25 @@ class SerialThread(threading.Thread):
                 data = self.serial.read(self.serial.in_waiting)
             except Exception as e:
                 print(f"Error: {e}")
-                print("Trying to reconnect...")
+                if ENABLE_RECONNECT:
+                    print("Trying to reconnect...")
 
-                while True:
-                    time.sleep(1)
-                    try:
-                        if MANUAL_PORT:
-                            self.serial = serial.Serial(self.serial_port, baudrate=9600, timeout=3)
-                        else:
-                            self.serial = serial.Serial(find_serial_port().device, baudrate=9600, timeout=3)
-                        self.write("bridgeConnected\0".encode())
-                        print("Reconnected!")
-                        break
-                    except Exception:
-                        pass
+                    while True:
+                        time.sleep(1)
+                        try:
+                            if MANUAL_PORT:
+                                self.serial = serial.Serial(self.serial_port, baudrate=9600, timeout=3)
+                            else:
+                                self.serial = serial.Serial(find_serial_port().device, baudrate=9600, timeout=3)
+                            self.write("bridgeConnected\0".encode())
+                            print("Reconnected!")
+                            break
+                        except Exception:
+                            pass
+                else:
+                    self.alive = False
+                    self.stop()
+                    pass
             else:
                 if data:
                     if data is None or data == b"":
