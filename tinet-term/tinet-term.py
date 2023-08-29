@@ -87,7 +87,7 @@ def handle_input(message, chatwin, sock):
         messagequeue.put("Please enter a command.")
         pass
     if message.lower() == "exit":
-        exit()
+        sys.exit(0)
     elif message.lower() == "clear":
         chatwin.clear()
         chatwin.refresh()
