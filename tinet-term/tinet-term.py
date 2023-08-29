@@ -31,7 +31,6 @@ messagequeue = queue.Queue()
 if CALC_ID is None or USERNAME is None or TOKEN is None:
     messagequeue.put("Calc ID, username or token could not be loaded!")
 
-
 def thread_receive_response(sock):
     sock.settimeout(0.1)
     while True:
@@ -98,6 +97,8 @@ def handleInput(message,chatwin,sock):
 #TODO: 
 # - auto-adjust the TUI when console size is changed
 # - Add scrollbar to chatwin and let user can scroll back in chat log
+# - autocomplete/suggestion 
+# - Use arrow keys to Scroll up/down through commands sent previously by user
 def main(stdscr):
     global rows
     global cols
@@ -171,19 +172,18 @@ def main(stdscr):
                 to_continue = False
                 raise KeyBoardInterrupt
             if key > 0:
-                #stdscr.addstr(rows-1, 5, f"Command: {key}")
-                messagewin.addstr(0, 0, f"Command: {key}")
+                #messagewin.addstr(0, 0, f"Command: {key}")
+                pass
             if key > 31 and key < 128:
-                current_input += chr(key)
-                #stdscr.addstr(rows-3, 5, f"Command: {current_input}")
-                messagewin.clear()
-                messagewin.refresh()
-                messagewin.addstr(0, 0, f"Command: {current_input}")
+                if(len(current_input+"Command: ") < cols-6): 
+                    current_input += chr(key)
+                    messagewin.clear()
+                    messagewin.refresh()
+                    messagewin.addstr(0, 0, f"Command: {current_input}")
             elif  key == 8:
                 current_input = current_input[:-1]
                 messagewin.clear()
                 messagewin.refresh()
-                #stdscr.addstr(rows-3, 5, f"Command: {current_input}")
                 messagewin.addstr(0, 0, f"Command: {current_input}")
             elif key == 10:
                 handleInput(current_input,chatwin,sock)
