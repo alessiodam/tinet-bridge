@@ -171,26 +171,26 @@ def main(stdscr):
                 to_continue = False
                 raise KeyBoardInterrupt
             if key > 0:
-                #stdscr.addstr(rows-1, 5, f"Message: {key}")
-                messagewin.addstr(0, 0, f"Message: {key}")
+                #stdscr.addstr(rows-1, 5, f"Command: {key}")
+                messagewin.addstr(0, 0, f"Command: {key}")
             if key > 31 and key < 128:
                 current_input += chr(key)
-                #stdscr.addstr(rows-3, 5, f"Message: {current_input}")
+                #stdscr.addstr(rows-3, 5, f"Command: {current_input}")
                 messagewin.clear()
                 messagewin.refresh()
-                messagewin.addstr(0, 0, f"Message: {current_input}")
+                messagewin.addstr(0, 0, f"Command: {current_input}")
             elif  key == 8:
                 current_input = current_input[:-1]
                 messagewin.clear()
                 messagewin.refresh()
-                #stdscr.addstr(rows-3, 5, f"Message: {current_input}")
-                messagewin.addstr(0, 0, f"Message: {current_input}")
+                #stdscr.addstr(rows-3, 5, f"Command: {current_input}")
+                messagewin.addstr(0, 0, f"Command: {current_input}")
             elif key == 10:
                 handleInput(current_input,chatwin,sock)
                 current_input = ""
                 messagewin.clear()
                 messagewin.refresh()
-                messagewin.addstr(0, 0, f"Message: {current_input}")
+                messagewin.addstr(0, 0, f"Command: {current_input}")
         except KeyboardInterrupt:
             pass
             break
