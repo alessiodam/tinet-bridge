@@ -27,7 +27,6 @@ messagequeue = queue.Queue()
 if CALC_ID is None or USERNAME is None or TOKEN is None:
     messagequeue.put("Calc ID, username or token could not be loaded!")
 
-
 def thread_receive_response(sock):
     sock.settimeout(0.1)
     while True:
@@ -65,7 +64,6 @@ def sigint_handler(sig, frame):
     messagequeue.put("\nCommand cancelled.")
     raise KeyboardInterrupt
 
-
 messages = []
 rows = 0
 cols = 0
@@ -100,6 +98,8 @@ def handle_input(message, chatwin, sock):
 # TODO:
 # - auto-adjust the TUI when console size is changed
 # - Add scrollbar to chatwin and let user can scroll back in chat log
+# - autocomplete/suggestion 
+# - Use arrow keys to Scroll up/down through commands sent previously by user
 def main(stdscr):
     global rows
     global cols
@@ -113,6 +113,7 @@ def main(stdscr):
     messagelen = cols - 5
     messagewin = curses.newwin(1, messagelen, rows - 3, 3)
     messagewin.nodelay(True)
+    messagewin.scrollok(True)
 
     rectangle(stdscr, rows - 4, 0, rows - 2, cols - 1)  # input chat textbox
     rectangle(stdscr, 1, 0, rows - 5, cols - 1)
@@ -142,6 +143,7 @@ def main(stdscr):
     logged_in = ""
     try:
         logged_in = sock.recv(4096).decode().strip()
+        print(logged_in) #DEBUG
     except Exception:
         pass
 
@@ -168,29 +170,26 @@ def main(stdscr):
         try:
             key = messagewin.getch()
             if key == 4 or key == 3:
-                to_continue = False
                 raise KeyboardInterrupt
-            if key > 0:
-                # stdscr.addstr(rows-1, 5, f"Command: {key}")
-                messagewin.addstr(0, 0, f"Command: {key}")
+            if key < 0:
+                # messagewin.addstr(0, 0, f"Command: {key}")
+                pass
             if 31 < key < 128:
                 current_input += chr(key)
-                # stdscr.addstr(rows-3, 5, f"Command: {current_input}")
                 messagewin.clear()
                 messagewin.refresh()
-                messagewin.addstr(0, 0, f"Command: {current_input}")
+                messagewin.addstr(f"Command: {current_input}")
             elif key == 8:
                 current_input = current_input[:-1]
                 messagewin.clear()
                 messagewin.refresh()
-                # stdscr.addstr(rows-3, 5, f"Command: {current_input}")
-                messagewin.addstr(0, 0, f"Command: {current_input}")
+                messagewin.addstr(f"Command: {current_input}")
             elif key == 10:
                 handle_input(current_input, chatwin, sock)
                 current_input = ""
                 messagewin.clear()
                 messagewin.refresh()
-                messagewin.addstr(0, 0, f"Command: {current_input}")
+                messagewin.addstr(f"Command: {current_input}")
         except KeyboardInterrupt:
             pass
             break
