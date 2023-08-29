@@ -182,12 +182,16 @@ class SerialThread(threading.Thread):
                     # make a separated try-except for called user code
                     decoded_data = data.decode().replace("/0", "").replace("\0", "")
                     logging.debug(decoded_data)
-                    if DEBUG:
-                        print(f'R - serial - ED: {data}')
-                    print(f'R - serial: {decoded_data}')
-
-                    self.socket_manager.write(decoded_data.encode())
-                    print(f'W - server: {decoded_data}')
+                    if decoded_data.startswith("LDBG_"):
+                        """Do not pass debug from calc to server"""
+                        debug_data = decoded_data.replace("LDBG_", "")
+                        logging.debug(f"Received debug from calc: {debug_data}")
+                    else:
+                        if DEBUG:
+                            print(f'R - serial - ED: {data}')
+                        print(f'R - serial: {decoded_data}')
+                        self.socket_manager.write(decoded_data.encode())
+                        print(f'W - server: {decoded_data}')
 
         self.alive = False
 
