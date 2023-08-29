@@ -41,7 +41,7 @@ def thread_receive_response(sock):
                 elif decoded_response == "SERVER_PONG":
                     messagequeue.put(f"Received SERVER_PONG")
                 else:
-                    messagequeue.put(f"Received:{decoded_response}")
+                    messagequeue.put(f"Received: {decoded_response}")
             except UnicodeDecodeError:
                 messagequeue.put(f"Received non-UTF-8 bytes:{response}")
 
