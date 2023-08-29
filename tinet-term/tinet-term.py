@@ -31,6 +31,7 @@ messagequeue = queue.Queue()
 if CALC_ID is None or USERNAME is None or TOKEN is None:
     messagequeue.put("Calc ID, username or token could not be loaded!")
 
+
 def thread_receive_response(sock):
     sock.settimeout(0.1)
     while True:
@@ -57,7 +58,7 @@ def command_help():
     messagequeue.put("Available commands:")
     messagequeue.put("? - Show a list of all available (local) commands.")
     #messagequeue.put("PING - ping the server  [Seems deprecated?]")
-    messagequeue.put("RTC_CHAT:[YOURMESSAGE] -  send a RTC message")
+    messagequeue.put("RTC_CHAT:[RECIPIENT]:[YOURMESSAGE] -  send a RTC message - Use recipient 'global' for global message")
     messagequeue.put("ACCOUNT_INFO - get current account information")
     messagequeue.put("exit - Quit the terminal.")
     messagequeue.put("clear - Clear the terminal screen.")
