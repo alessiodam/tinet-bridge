@@ -105,13 +105,18 @@ class SocketThread(threading.Thread):
                 print(f'R - server - ED: {server_response}')
             print(f'R - server: {decoded_server_response}')
 
-            if self.serial_manager.alive:
-                self.serial_manager.write(decoded_server_response.encode())
-            
-            print(f'W - serial: {decoded_server_response}')
-
-            if decoded_server_response == "DISCONNECT":
+            if decoded_server_response == "SERVER_PING":
+                self.socket.send("CLIENT_PONG".encode())
+            elif decoded_server_response == "DISCONNECT": # calculator does not understand this and will crash
                 self.alive = False
+            elif decoded_server_response == "ALREADY_CONNECTED":
+                if DEBUG:
+                    print("Skipping telling calc to prevent crash") # Until the bug is fixed
+            elif self.serial_manager.alive:
+                self.serial_manager.write(decoded_server_response.encode())
+                print(f'W - serial: {decoded_server_response}')
+            
+
 
     def write(self, data):
         """Thread safe writing (uses lock)"""
