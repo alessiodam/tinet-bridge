@@ -233,7 +233,7 @@ class SerialThread(threading.Thread):
                                     break
 
                             if update_done_sent:
-                                self.serial.write(b'UPDATE_DONE')
+                                self.serial.write('UPDATE_DONE'.encode())
                                 print("File update completed successfully.")
                             else:
                                 print("File update failed.")
