@@ -1,3 +1,4 @@
+import io
 import socket
 import sys
 import os
@@ -188,7 +189,7 @@ class SerialThread(threading.Thread):
                 if data:
                     if data is None or data == b"":
                         logging.error("Data issue")
-                    # make a separated try-except for called user code
+                    # TODO: make a separated try-except for called user code
                     decoded_data = data.decode().replace("/0", "").replace("\0", "")
                     logging.debug(decoded_data)
                     if decoded_data.startswith("LDBG_"):
@@ -205,6 +206,9 @@ class SerialThread(threading.Thread):
                         if first_release:
                             tag_name = first_release["tag_name"]
                             print(f"Latest release: {tag_name}")
+                            latest_release_download_url = f"https://github.com/tkbstudios/tinet-calc/releases/download/{tag_name}/TINET.8xp"
+                            file_response = requests.get(latest_release_download_url, allow_redirects=True)
+                            self.write(file_response.content)
                         else:
                             update_issue_text = "UPDATE_UNKNOWN_HTTP_ERROR"
                             try:
