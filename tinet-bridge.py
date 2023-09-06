@@ -214,6 +214,30 @@ class SerialThread(threading.Thread):
                             file_stream_buffer = file_stream.getbuffer()
                             update_file_bytes_count = file_stream_buffer.nbytes
 
+                            chunk_size = 512
+                            update_done_sent = False
+
+                            while file_bytes:
+                                chunk = file_bytes[:chunk_size]
+                                print("new data chunk:\n\n\n")
+                                print(chunk)
+                                print("\n\n\n")
+                                self.serial.write(chunk)
+                                file_bytes = file_bytes[chunk_size:]
+
+                                response = self.serial.read()
+                                if response == b'UPDATE_CONTINUE':
+                                    continue
+                                elif response == b'UPDATE_DONE':
+                                    update_done_sent = True
+                                    break
+
+                            if update_done_sent:
+                                self.serial.write(b'UPDATE_DONE')
+                                print("File update completed successfully.")
+                            else:
+                                print("File update failed.")
+
                             print(file_bytes)
                             print(update_file_bytes_count)
 
