@@ -208,7 +208,13 @@ class SerialThread(threading.Thread):
                             print(f"Latest release: {tag_name}")
                             latest_release_download_url = f"https://github.com/tkbstudios/tinet-calc/releases/download/{tag_name}/TINET.8xp"
                             file_response = requests.get(latest_release_download_url, allow_redirects=True)
-                            self.write(file_response.content)
+                            file_stream = io.BytesIO()
+                            file_stream.write(file_response.content)
+                            file_bytes = file_stream.getbuffer().tobytes()
+                            self.serial.write(file_bytes)
+                            #  file_stream_buffer = file_stream.getbuffer()
+                            #  update_file_bytes_count = file_stream_buffer.nbytes
+                            #  self.serial.read(self.serial.in_waiting)
                         else:
                             update_issue_text = "UPDATE_UNKNOWN_HTTP_ERROR"
                             try:
