@@ -211,10 +211,13 @@ class SerialThread(threading.Thread):
                             file_stream = io.BytesIO()
                             file_stream.write(file_response.content)
                             file_bytes = file_stream.getbuffer().tobytes()
+                            file_stream_buffer = file_stream.getbuffer()
+                            update_file_bytes_count = file_stream_buffer.nbytes
+
+                            print(file_bytes)
+                            print(update_file_bytes_count)
+
                             self.serial.write(file_bytes)
-                            #  file_stream_buffer = file_stream.getbuffer()
-                            #  update_file_bytes_count = file_stream_buffer.nbytes
-                            #  self.serial.read(self.serial.in_waiting)
                         else:
                             update_issue_text = "UPDATE_UNKNOWN_HTTP_ERROR"
                             try:
