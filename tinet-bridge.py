@@ -216,6 +216,7 @@ class SerialThread(threading.Thread):
 
                             chunk_size = 512
                             update_done_sent = False
+                            total_bytes_written = 0
 
                             while file_bytes:
                                 chunk = file_bytes[:chunk_size]
@@ -224,19 +225,11 @@ class SerialThread(threading.Thread):
                                 print("\n\n\n")
                                 self.serial.write(chunk)
                                 file_bytes = file_bytes[chunk_size:]
-
-                                response = self.serial.read()
-                                if response == b'UPDATE_CONTINUE':
+                                total_bytes_written += chunk_size
+                                if total_bytes_written >= update_file_bytes_count:
+                                    self.serial.write('UPDATE_DONE'.encode())
+                                else:
                                     continue
-                                elif response == b'UPDATE_DONE':
-                                    update_done_sent = True
-                                    break
-
-                            if update_done_sent:
-                                self.serial.write('UPDATE_DONE'.encode())
-                                print("File update completed successfully.")
-                            else:
-                                print("File update failed.")
                         else:
                             update_issue_text = "UPDATE_UNKNOWN_HTTP_ERROR"
                             try:
