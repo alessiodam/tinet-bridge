@@ -3,6 +3,8 @@ import sys
 import os
 import dotenv
 import threading
+
+import requests
 from colorama import init, Fore
 import signal
 import serial
@@ -30,6 +32,8 @@ logging.basicConfig(filename=f"log-{round(time.time())}.log",
                     level=logging.DEBUG)
 
 logger = logging.getLogger()
+
+GITHUB_RELEASES_URL = "https://api.github.com/repos/tkbstudios/tinet-calc/releases?per_page=10"
 
 CALC_ID = dotenv.get_key(key_to_get="CALC_ID", dotenv_path=".env")
 USERNAME = dotenv.get_key(key_to_get="USERNAME", dotenv_path=".env")
@@ -191,6 +195,27 @@ class SerialThread(threading.Thread):
                         """Do not pass debug from calc to server"""
                         debug_data = decoded_data.replace("LDBG_", "")
                         logging.debug(f"Received debug from calc: {debug_data}")
+                    elif decoded_data.startswith("UPDATE_CLIENT:"):
+                        release_type = decoded_data.replace("UPDATE_CLIENT:", "")
+                        print("update client")
+                        response = requests.get(GITHUB_RELEASES_URL)
+                        data = response.json()
+                        filtered_releases = list(filter(lambda x: x[release_type], data))
+                        first_release = filtered_releases[0] if filtered_releases else None
+                        if first_release:
+                            tag_name = first_release["tag_name"]
+                            print(f"Latest release: {tag_name}")
+                        else:
+                            update_issue_text = "UPDATE_UNKNOWN_HTTP_ERROR"
+                            try:
+                                response.raise_for_status()
+                            except requests.HTTPError as e:
+                                logging.error(str(e))
+                            else:
+                                if response.status_code != 200:
+                                    update_issue_text = f"UPDATE_INCORRECT_STATUS_CODE:{response.status_code}"
+                            self.write(update_issue_text.encode())
+
                     else:
                         if DEBUG:
                             print(f'R - serial - ED: {data}')
