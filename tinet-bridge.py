@@ -237,11 +237,6 @@ class SerialThread(threading.Thread):
                                 print("File update completed successfully.")
                             else:
                                 print("File update failed.")
-
-                            print(file_bytes)
-                            print(update_file_bytes_count)
-
-                            self.serial.write(file_bytes)
                         else:
                             update_issue_text = "UPDATE_UNKNOWN_HTTP_ERROR"
                             try:
