@@ -198,7 +198,13 @@ class SerialThread(threading.Thread):
                         print("update client")
                         response = requests.get(GITHUB_RELEASES_URL)
                         data = response.json()
-                        filtered_releases = list(filter(lambda x: x[release_type], data))
+                        if release_type == "dev":
+                            filtered_releases = [release for release in data if release["prerelease"]]
+                        elif release_type == "stable":
+                            filtered_releases = [release for release in data if not release["prerelease"]]
+                        else:
+                            self.serial.write("INVALID_RELEASE".encode())
+                            return
                         first_release = filtered_releases[0] if filtered_releases else None
                         if first_release:
                             tag_name = first_release["tag_name"]
