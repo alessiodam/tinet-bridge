@@ -229,7 +229,8 @@ class SerialThread(threading.Thread):
                                 if total_bytes_written >= update_file_bytes_count:
                                     self.serial.write('UPDATE_DONE'.encode())
                                 else:
-                                    continue
+                                    if self.serial.read(self.serial.in_waiting).decode() == "UPDATE_CONTINUE":
+                                        continue
                         else:
                             update_issue_text = "UPDATE_UNKNOWN_HTTP_ERROR"
                             try:
