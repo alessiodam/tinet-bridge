@@ -2,6 +2,9 @@
 This program makes the connection between your calculator and our main servers possible!  
 [![wakatime](https://wakatime.com/badge/github/tkbstudios/tinet-bridge.svg)](https://wakatime.com/badge/github/tkbstudios/tinet-bridge)
 
+> ⚠️ please ALWAYS update the bridge to the latest version!  
+> by doing this you make sure that you have the latest security updates available!
+
 ## How to use
 1. Clone this repository using `git clone https://github.com/tkbstudios/tinet-bridge`
 2. Go to your cloned repository and run `pip3 install -r requirements.txt` inside your terminal (You need python3.11 and pip3 installed)
