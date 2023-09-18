@@ -268,6 +268,31 @@ class SerialThread(threading.Thread):
                         elif method == "DELETE":
                             response = requests.delete(url, data=body, headers=headers)
                             self.serial.write(response.content)
+                    elif decoded_data.startswith('DOWNLOAD_FILE'):
+                        file_url = decoded_data.replace('DOWNLOAD_FILE', '')
+                        download_file_response = requests.get(file_url)
+                        download_file_stream = io.BytesIO()
+                        download_file_stream.write(download_file_response.content)
+                        download_file_bytes = download_file_stream.getbuffer().tobytes()
+                        download_file_stream_buffer = download_file_stream.getbuffer()
+                        download_file_bytes_count = download_file_stream_buffer.nbytes
+
+                        chunk_size = 512
+                        total_bytes_written = 0
+
+                        while download_file_bytes:
+                            chunk = download_file_bytes[:chunk_size]
+                            print("new data chunk:\n\n\n")
+                            print(chunk)
+                            print("\n\n\n")
+                            self.serial.write(chunk)
+                            download_file_bytes = download_file_bytes[chunk_size:]
+                            total_bytes_written += chunk_size
+                            if total_bytes_written >= download_file_bytes_count:
+                                self.serial.write('UPDATE_DONE'.encode())
+                            else:
+                                if self.serial.read(self.serial.in_waiting).decode() == "UPDATE_CONTINUE":
+                                    continue
 
                     else:
                         if DEBUG:
