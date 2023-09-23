@@ -1,10 +1,12 @@
+import io
 import socket
 import sys
 import os
 import dotenv
 import threading
+
+import requests
 from colorama import init, Fore
-import signal
 import serial
 import serial.threaded
 import time
@@ -31,6 +33,8 @@ logging.basicConfig(filename=f"log-{round(time.time())}.log",
 
 logger = logging.getLogger()
 
+GITHUB_RELEASES_URL = "https://api.github.com/repos/tkbstudios/tinet-calc/releases?per_page=10"
+
 CALC_ID = dotenv.get_key(key_to_get="CALC_ID", dotenv_path=".env")
 USERNAME = dotenv.get_key(key_to_get="USERNAME", dotenv_path=".env")
 TOKEN = dotenv.get_key(key_to_get="TOKEN", dotenv_path=".env")
@@ -41,7 +45,7 @@ if CALC_ID is None or USERNAME is None or TOKEN is None:
 
 def find_serial_port():
     while True:
-        time.sleep(1)
+        time.sleep(0.2)
         ports = list(serial.tools.list_ports.comports())
         for port in ports:
             if "USB Serial Device" in port.description or "TI-84" in port.description:
@@ -81,7 +85,7 @@ class SocketThread(threading.Thread):
         # try:
         self.socket.connect((SERVER_ADDRESS, SERVER_PORT))
         self.alive = True
-       
+
         self.serial_manager.write("bridgeConnected\0".encode())
         print("Client got notified he was connected to the bridge!")
 
@@ -105,13 +109,16 @@ class SocketThread(threading.Thread):
                 print(f'R - server - ED: {server_response}')
             print(f'R - server: {decoded_server_response}')
 
-            if self.serial_manager.alive:
-                self.serial_manager.write(decoded_server_response.encode())
-            
-            print(f'W - serial: {decoded_server_response}')
-
-            if decoded_server_response == "DISCONNECT":
+            if decoded_server_response == "SERVER_PING":
+                self.socket.send("CLIENT_PONG".encode())
+            elif decoded_server_response == "DISCONNECT":  # calculator does not understand this and will crash
                 self.alive = False
+            elif decoded_server_response == "ALREADY_CONNECTED":
+                if DEBUG:
+                    print("Skipping telling calc to prevent crash")  # Until the bug is fixed
+            elif self.serial_manager.alive:
+                self.serial_manager.write(decoded_server_response.encode())
+                print(f'W - serial: {decoded_server_response}')
 
     def write(self, data):
         """Thread safe writing (uses lock)"""
@@ -126,7 +133,7 @@ class SerialThread(threading.Thread):
         """\
         Initialize thread.
 
-        Note that the serial_instance' timeout is set to one second!
+        Note that the serial_instance timeout is set to 3 second!
         Other settings are not changed.
         """
         super(SerialThread, self).__init__()
@@ -179,15 +186,120 @@ class SerialThread(threading.Thread):
                 if data:
                     if data is None or data == b"":
                         logging.error("Data issue")
-                    # make a separated try-except for called user code
+                    # TODO: make a separated try-except for called user code
                     decoded_data = data.decode().replace("/0", "").replace("\0", "")
                     logging.debug(decoded_data)
-                    if DEBUG:
-                        print(f'R - serial - ED: {data}')
-                    print(f'R - serial: {decoded_data}')
+                    if decoded_data.startswith("LDBG_"):
+                        """Do not pass debug from calc to server"""
+                        debug_data = decoded_data.replace("LDBG_", "")
+                        logging.debug(f"Received debug from calc: {debug_data}")
+                    elif decoded_data.startswith("UPDATE_CLIENT:"):
+                        release_type = decoded_data.replace("UPDATE_CLIENT:", "")
+                        print("update client")
+                        response = requests.get(GITHUB_RELEASES_URL)
+                        data = response.json()
+                        if release_type == "dev":
+                            filtered_releases = [release for release in data if release["prerelease"]]
+                        elif release_type == "stable":
+                            filtered_releases = [release for release in data if not release["prerelease"]]
+                        else:
+                            self.serial.write("INVALID_RELEASE".encode())
+                            return
+                        first_release = filtered_releases[0] if filtered_releases else None
+                        if first_release:
+                            tag_name = first_release["tag_name"]
+                            print(f"Latest release: {tag_name}")
+                            latest_release_download_url = (
+                                f"https://github.com/tkbstudios/tinet-calc/releases/download/{tag_name}/TINET.8xp"
+                            )
+                            file_response = requests.get(latest_release_download_url, allow_redirects=True)
+                            file_stream = io.BytesIO()
+                            file_stream.write(file_response.content)
+                            file_bytes = file_stream.getbuffer().tobytes()
+                            file_stream_buffer = file_stream.getbuffer()
+                            update_file_bytes_count = file_stream_buffer.nbytes
 
-                    self.socket_manager.write(decoded_data.encode())
-                    print(f'W - server: {decoded_data}')
+                            chunk_size = 512
+                            total_bytes_written = 0
+
+                            while file_bytes:
+                                chunk = file_bytes[:chunk_size]
+                                print("new data chunk:\n\n\n")
+                                print(chunk)
+                                print("\n\n\n")
+                                self.serial.write(chunk)
+                                file_bytes = file_bytes[chunk_size:]
+                                total_bytes_written += chunk_size
+                                if total_bytes_written >= update_file_bytes_count:
+                                    self.serial.write('UPDATE_DONE'.encode())
+                                else:
+                                    if self.serial.read(self.serial.in_waiting).decode() == "UPDATE_CONTINUE":
+                                        continue
+                        else:
+                            update_issue_text = "UPDATE_UNKNOWN_HTTP_ERROR"
+                            try:
+                                response.raise_for_status()
+                            except requests.HTTPError as e:
+                                logging.error(str(e))
+                            else:
+                                if response.status_code != 200:
+                                    update_issue_text = f"UPDATE_INCORRECT_STATUS_CODE:{response.status_code}"
+                            self.write(update_issue_text.encode())
+
+                    elif decoded_data.startswith("HTTP_"):
+                        method, url, headers, body = decoded_data.replace("HTTP_", "", 1).split("***", 2)
+                        print(
+                            f"{method} request to {url}"
+                            f"\nHeaders: {headers}"
+                            f"\nBody: {body}"
+                        )
+                        if method == "GET":
+                            response = requests.get(url, data=body, headers=headers)
+                            self.serial.write(response.content)
+                        elif method == "POST":
+                            response = requests.post(url, data=body, headers=headers)
+                            self.serial.write(response.content)
+                        elif method == "PUT":
+                            response = requests.put(url, data=body, headers=headers)
+                            self.serial.write(response.content)
+                        elif method == "PATCH":
+                            response = requests.patch(url, data=body, headers=headers)
+                            self.serial.write(response.content)
+                        elif method == "DELETE":
+                            response = requests.delete(url, data=body, headers=headers)
+                            self.serial.write(response.content)
+                    elif decoded_data.startswith('DOWNLOAD_FILE'):
+                        file_url = decoded_data.replace('DOWNLOAD_FILE', '')
+                        download_file_response = requests.get(file_url)
+                        download_file_stream = io.BytesIO()
+                        download_file_stream.write(download_file_response.content)
+                        download_file_bytes = download_file_stream.getbuffer().tobytes()
+                        download_file_stream_buffer = download_file_stream.getbuffer()
+                        download_file_bytes_count = download_file_stream_buffer.nbytes
+
+                        chunk_size = 512
+                        total_bytes_written = 0
+
+                        while download_file_bytes:
+                            chunk = download_file_bytes[:chunk_size]
+                            print("new data chunk:\n\n\n")
+                            print(chunk)
+                            print("\n\n\n")
+                            self.serial.write(chunk)
+                            download_file_bytes = download_file_bytes[chunk_size:]
+                            total_bytes_written += chunk_size
+                            if total_bytes_written >= download_file_bytes_count:
+                                self.serial.write('UPDATE_DONE'.encode())
+                            else:
+                                if self.serial.read(self.serial.in_waiting).decode() == "UPDATE_CONTINUE":
+                                    continue
+
+                    else:
+                        if DEBUG:
+                            print(f'R - serial - ED: {data}')
+                        print(f'R - serial: {decoded_data}')
+                        self.socket_manager.write(decoded_data.encode())
+                        print(f'W - server: {decoded_data}')
 
         self.alive = False
 
@@ -213,7 +325,7 @@ class SerialThread(threading.Thread):
             self._connection_made.wait()
             if not self.alive:
                 raise RuntimeError('connection_lost already called')
-            return (self, self.protocol)
+            return self, self.protocol
         else:
             raise RuntimeError('already stopped')
 
@@ -261,23 +373,12 @@ def command_help():
     print("clear - Clear the terminal screen.")
 
 
-def sigint_handler(sig, frame):
-    print(Fore.RED + "\nCommand cancelled.")
-    raise KeyboardInterrupt
-
-
-# Returns all avaiable ports and prints them
-def list_serial_ports():
-    ports = list_ports.comports()
-    for i, port in enumerate(ports):
-        print(f"{i + 1}. {port.device} - {port.description}")
-    return ports
-
-
 # Prompts user to select a serial port
 def select_serial_port():
     while True:
-        ports = list_serial_ports()
+        ports = list_ports.comports()
+        for i, port in enumerate(ports):
+            print(f"{i + 1}. {port.device} - {port.description}")
 
         if len(ports) == 0:
             print("No devices detected! Is your calculator connected?")
@@ -313,7 +414,7 @@ def main():
                 print("sudo groupadd dialout")
                 print("sudo usermod -a -G dialout $USER")
                 print(f"sudo chmod a+rw {selected_port.device}")
-                user_response = input("Add the permissions autmatically? (y or n): ").lower()
+                user_response = input("Add the permissions automatically? (y or n): ").lower()
                 if user_response == "y":
                     os.system("sudo groupadd dialout")
                     os.system("sudo usermod -a -G dialout $USER")
@@ -333,53 +434,6 @@ def main():
 
         sys.exit(0)
 
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        print(Fore.LIGHTBLACK_EX + f"Connecting to {SERVER_ADDRESS}:{SERVER_PORT} ...")
-        sock.connect((SERVER_ADDRESS, SERVER_PORT))
-        print(Fore.GREEN + f"Connected to {SERVER_ADDRESS}:{SERVER_PORT} !")
-
-        print(Fore.YELLOW + "Logging in..")
-        sock.send("SERIAL_CONNECTED".encode())
-        sock.recv(4096)
-
-        sock.send(f"LOGIN:{CALC_ID}:{USERNAME}:{TOKEN}".encode())
-        loggedIn = sock.recv(4096).decode().strip()
-
-        if loggedIn != "LOGIN_SUCCESS":
-            print(Fore.RED + "Login failed!")
-            print(Fore.RED + loggedIn)
-            sys.exit(1)
-        print(Fore.GREEN + "Logged in as", USERNAME)
-
-        print(Fore.CYAN + f"You are now connected to the socket server at {SERVER_ADDRESS}:{SERVER_PORT}.")
-        print("Type your commands, and press Enter to send.")
-        print("Type '?' to show a list of available commands.")
-
-        signal.signal(signal.SIGINT, sigint_handler)
-
-        while True:
-            user_input = input(Fore.YELLOW + ">>> ")
-
-            if not user_input.strip():
-                print(Fore.YELLOW + "Please enter a command.")
-                continue
-
-            if user_input.lower() == "exit":
-                break
-            elif user_input.lower() == "clear":
-                os.system("cls" if os.name == "nt" else "clear")
-            elif user_input == "?":
-                command_help()
-            else:
-                sock.send(user_input.encode())  # Encode the user input as bytes
-                receive_response(sock)
-
-    except KeyboardInterrupt:
-        print(Fore.RED + "CTRL-C received. Command cancelled.")
-    finally:
-        sock.close()
-        print(Fore.CYAN + "Socket connection closed.")
 
 if __name__ == "__main__":
     main()

@@ -1,6 +1,9 @@
-# TI-84 Plus CE Net Bridge
+# TINET Bridge
 This program makes the connection between your calculator and our main servers possible!  
 [![wakatime](https://wakatime.com/badge/github/tkbstudios/tinet-bridge.svg)](https://wakatime.com/badge/github/tkbstudios/tinet-bridge)
+
+> ⚠️ please ALWAYS update the bridge to the latest version!  
+> by doing this you make sure that you have the latest security updates available!
 
 ## How to use
 1. Clone this repository using `git clone https://github.com/tkbstudios/tinet-bridge`

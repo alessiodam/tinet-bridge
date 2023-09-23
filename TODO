@@ -1,5 +1,0 @@
-[x] make bridge listen in a loop and not if serial sends something
-[x] Exit if disconnected (idk if it's done we'll see)
-[x] Bridge working flawlessly
-[x] Fix the bridge not working on windows (Windows blocks TCP connection)
-[ ] Create a UI for users who want a UI (Will do as last when everything works)
