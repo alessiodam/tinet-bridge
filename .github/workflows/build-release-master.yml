@@ -1,0 +1,68 @@
+name: Build and Release Master
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Get repository information
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const repo = context.payload.repository.full_name;
+            console.log(`The repository is ${repo}`);
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y python3 python3-pip
+
+      - name: Install pip3 requirements
+        run: python3 -m pip install -r requirements.txt
+
+      - name: Install pyinstaller
+        run: python3 -m pip install pyinstaller
+
+      - name: Build tinet-bridge.exe
+        run: pyinstaller --onefile .\tinet-bridge.py
+
+      - name: Upload tinet-bridge.exe
+        uses: actions/upload-artifact@v3
+        with:
+          name: tinet-bridge.exe
+          path: dist/tinet-bridge.exe
+
+      - name: Set final commit status
+        uses: myrotvorets/set-commit-status-action@master
+        if: always()
+        with:
+          sha: ${{ steps.comment-branch.outputs.head_sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          status: ${{ job.status }}
+
+      - name: Create Stable Release
+        id: create_release
+        uses: actions/create-release@v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: V0.0.${{ github.run_number }}
+          release_name: V0.0.${{ github.run_number }}
+          draft: false
+          prerelease: false
+
+      - name: Add tinet-bridge.exe to Release
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/tinet-bridge.exe
+          asset_name: tinet-bridge.exe
+          asset_content_type: application/octet-stream
