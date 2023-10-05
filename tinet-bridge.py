@@ -25,7 +25,9 @@ MANUAL_PORT = False
 ENABLE_RECONNECT = True
 # -------END CONFIG------- #
 
-logging.basicConfig(filename=f"log-{round(time.time())}.log",
+os.makedirs('logs', exist_ok=True)
+
+logging.basicConfig(filename=f"logs/log-{round(time.time())}.log",
                     filemode='a',
                     format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
                     datefmt='%H:%M:%S',
