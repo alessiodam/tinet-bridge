@@ -19,7 +19,7 @@ def main():
 
     if port:
         print("Connecting to serial port")
-        ser = serial.Serial(port.device, baudrate=9600, timeout=3)
+        ser = serial.Serial(port.device, baudrate=115200, timeout=3)
         if ser.is_open:
             print("Connected to serial port")
 
