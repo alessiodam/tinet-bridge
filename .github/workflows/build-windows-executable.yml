@@ -12,7 +12,9 @@ jobs:
         python-version: 3.11
 
     - run: pip install -r requirements.txt pyinstaller
-    - run: pyinstaller tinet-bridge.py
+    - run: pyinstaller --onefile tinet-bridge.py
     - uses: actions/upload-artifact@v2
       with:
-        path: dist/*
+        name: tinet-bridge.exe
+        path: dist/tinet-bridge.exe
+        if-no-files-found: error
