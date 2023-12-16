@@ -1,23 +1,23 @@
-name: Package Application with Pyinstaller
-
 on:
   push:
-    branches: [ main, dev, rewrite ]
-  pull_request:
-    branches: [ main, dev, rewrite ]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ['windows-latest', 'ubuntu-latest', 'macos-latest']
+
     steps:
     - uses: actions/checkout@v2
-
-    - name: Package Application
-      uses: JackMcKew/pyinstaller-action-windows@main
+    - uses: actions/setup-python@v2
       with:
-        path: .
+        python-version: 3.11
 
+    - run: pip install -r requirements.txt pyinstaller
+    - run: pyinstaller tinet-bridge.py
+    - run: ./dist/tinet-bridge/tinet-bridge
     - uses: actions/upload-artifact@v2
       with:
-        name: tinet-bridge-win
-        path: src/dist/windows
+        path: dist/*
