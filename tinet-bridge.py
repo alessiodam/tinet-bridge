@@ -1,6 +1,12 @@
+import threading
+import time
 import serial
 import serial.tools.list_ports
-import time
+import socket
+from queue import Queue
+
+SERVER_ADDRESS = 'tinethub.tkbstudios.com'
+SERVER_PORT = 2052
 
 
 def find_serial_port():
@@ -12,38 +18,72 @@ def find_serial_port():
                 return port
 
 
-def main():
-    print("Searching port..")
-    port = find_serial_port()
-    print(port)
+class SerialThread(threading.Thread):
+    def __init__(self, serial_port, data_queue):
+        threading.Thread.__init__(self)
+        self.serial_port = serial_port
+        self.data_queue = data_queue
 
-    if port:
-        print("Connecting to serial port")
-        ser = serial.Serial(port.device, baudrate=115200, timeout=3)
-        if ser.is_open:
-            print("Connected to serial port")
+    def run(self):
+        if self.serial_port.is_open:
+            self.serial_port.write("BRIDGE_CONNECTED\0".encode())
 
+        while True:
+            decoded_data = self.serial_port.readline().decode().strip()
+            if decoded_data == "CONNECT_TCP\0":
+                break  # Exit the loop after receiving "CONNECT_TCP"
+
+        while True:
+            data_to_send = "Hello, TCP server!"  # Modify this line with the data you want to send
+            self.serial_port.write(data_to_send.encode())
+
+
+class SocketThread(threading.Thread):
+    def __init__(self, serial_port, data_queue):
+        threading.Thread.__init__(self)
+        self.serial_port = serial_port
+        self.data_queue = data_queue
+
+    def run(self):
         try:
-            ser.write(b'BRIDGE_CONNECTED\0')
-            data = ser.read(1024)
-            ser.flush()
-            print(f"Received data: {data.decode('utf-8')}")
+            server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            server_socket.connect((SERVER_ADDRESS, SERVER_PORT))
+            print("Socket connection established")
+            self.data_queue.put("TCP_CONNECTED\0")
 
             while True:
-                user_input = input("Enter data to send: ")
-                written_bytes = ser.write(user_input.encode())
-                print(f"wrote {written_bytes} bytes")
+                data_received = self.serial_port.readline().decode().strip()
+                if not data_received:
+                    break
+                print(f"Received from Serial: {data_received}")
+                self.data_queue.put(data_received)
 
-                data = ser.read(1024)
-                print(f"Received data: {data}")
-
-        except serial.SerialTimeoutException:
-            print("Timeout occurred while waiting for data.")
+                # Send the received data to the TCP server
+                server_socket.sendall(data_received.encode())
+        except Exception as e:
+            print(f"Error connecting to the server: {e}")
         finally:
-            ser.close()
-    else:
-        print("No suitable port found.")
+            server_socket.close()
 
 
 if __name__ == "__main__":
-    main()
+    data_queue = Queue()
+    serial_port = find_serial_port()
+    serial_conn = serial.Serial(serial_port.device, 115200)
+
+    serial_thread = SerialThread(serial_conn, data_queue)
+    socket_thread = SocketThread(serial_conn, data_queue)
+
+    # Start serial thread first
+    serial_thread.start()
+
+    # Start socket thread
+    socket_thread.start()
+
+    try:
+        # No user input needed, data is sent automatically in the threads
+        time.sleep(10)  # Run for 10 seconds (adjust as needed)
+    finally:
+        data_queue.put("EXIT")  # Signal the threads to exit
+        serial_thread.join()
+        socket_thread.join()
