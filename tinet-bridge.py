@@ -14,6 +14,16 @@ def find_serial_port():
                 return port
 
 
+def clean_logging_message(message_to_clean: str):
+    clean_message = message_to_clean
+    if message_to_clean.startswith("LOGIN:"):
+        login_data = message_to_clean.replace("LOGIN:", "").split(":", 2)
+        login_data[0] = login_data[0][:4] + ("*" * 10) + login_data[0][-4:]
+        login_data[2] = login_data[2][:4] + ("*" * 50) + login_data[2][-4:]
+        clean_message = f"LOGIN:{login_data[0]}:{login_data[1]}:{login_data[2]}"
+    return clean_message
+
+
 async def bridge(serial_device):
     serial_reader, serial_writer = await open_serial_connection(url=serial_device, baudrate=115200)
 
@@ -42,19 +52,19 @@ async def bridge(serial_device):
             print("Calculator disconnected")
             break
         serial_message = str(serial_data, 'utf-8')
-        print(f"RXSRL: {serial_message}")
+        print(f"receive from calculator: {clean_logging_message(serial_message)}")
 
         tcp_writer.write(serial_message.encode())
         await tcp_writer.drain()
-        print(f"TXTCP: {serial_message}")
+        print(f"transfer to TINET: {clean_logging_message(serial_message)}")
 
         tcp_data = await tcp_reader.read(1024)
         tcp_message = tcp_data.decode()
-        print(f"RXTCP: {tcp_message}")
+        print(f"receive from TINET: {clean_logging_message(tcp_message)}")
 
         serial_writer.write(tcp_message.encode())
         await serial_writer.drain()
-        print(f"TXSRL: {tcp_message}")
+        print(f"transfer to calculator: {clean_logging_message(tcp_message)}")
     print("Exiting bridge..")
 
 
