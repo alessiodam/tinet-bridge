@@ -1,12 +1,8 @@
-import threading
+import asyncio
 import time
-import serial
 import serial.tools.list_ports
-import socket
-from queue import Queue
-
-SERVER_ADDRESS = 'tinethub.tkbstudios.com'
-SERVER_PORT = 2052
+import serial.serialutil
+from serial_asyncio import open_serial_connection
 
 
 def find_serial_port():
@@ -18,72 +14,54 @@ def find_serial_port():
                 return port
 
 
-class SerialThread(threading.Thread):
-    def __init__(self, serial_port, data_queue):
-        threading.Thread.__init__(self)
-        self.serial_port = serial_port
-        self.data_queue = data_queue
+async def bridge(serial_device):
+    serial_reader, serial_writer = await open_serial_connection(url=serial_device, baudrate=115200)
 
-    def run(self):
-        if self.serial_port.is_open:
-            self.serial_port.write("BRIDGE_CONNECTED\0".encode())
+    serial_writer.write("BRIDGE_CONNECTED\0".encode())
+    await serial_writer.drain()
+    print("sent BRIDGE_CONNECTED")
 
-        while True:
-            decoded_data = self.serial_port.readline().decode().strip()
-            if decoded_data == "CONNECT_TCP\0":
-                break  # Exit the loop after receiving "CONNECT_TCP"
+    while True:
+        line = await serial_reader.read(1024)
+        message = str(line, 'utf-8').strip()
+        print(message)
+        if message == "CONNECT_TCP":
+            print("received CONNECT_TCP")
+            break
 
-        while True:
-            data_to_send = "Hello, TCP server!"  # Modify this line with the data you want to send
-            self.serial_port.write(data_to_send.encode())
+    tcp_reader, tcp_writer = await asyncio.open_connection('127.0.0.1', 2052)
 
+    serial_writer.write("TCP_CONNECTED\0".encode())
+    await serial_writer.drain()
+    print("sent TCP_CONNECTED")
 
-class SocketThread(threading.Thread):
-    def __init__(self, serial_port, data_queue):
-        threading.Thread.__init__(self)
-        self.serial_port = serial_port
-        self.data_queue = data_queue
-
-    def run(self):
+    while True:
         try:
-            server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            server_socket.connect((SERVER_ADDRESS, SERVER_PORT))
-            print("Socket connection established")
-            self.data_queue.put("TCP_CONNECTED\0")
+            serial_data = await serial_reader.read(1024)
+        except serial.serialutil.SerialException:
+            print("Calculator disconnected")
+            break
+        serial_message = str(serial_data, 'utf-8')
+        print(f"RXSRL: {serial_message}")
 
-            while True:
-                data_received = self.serial_port.readline().decode().strip()
-                if not data_received:
-                    break
-                print(f"Received from Serial: {data_received}")
-                self.data_queue.put(data_received)
+        tcp_writer.write(serial_message.encode())
+        await tcp_writer.drain()
+        print(f"TXTCP: {serial_message}")
 
-                # Send the received data to the TCP server
-                server_socket.sendall(data_received.encode())
-        except Exception as e:
-            print(f"Error connecting to the server: {e}")
-        finally:
-            server_socket.close()
+        tcp_data = await tcp_reader.read(1024)
+        tcp_message = tcp_data.decode()
+        print(f"RXTCP: {tcp_message}")
+
+        serial_writer.write(tcp_message.encode())
+        await serial_writer.drain()
+        print(f"TXSRL: {tcp_message}")
+    print("Exiting bridge..")
 
 
 if __name__ == "__main__":
-    data_queue = Queue()
+    loop = asyncio.new_event_loop()
+    print("Waiting for a calculator..")
     serial_port = find_serial_port()
-    serial_conn = serial.Serial(serial_port.device, 115200)
-
-    serial_thread = SerialThread(serial_conn, data_queue)
-    socket_thread = SocketThread(serial_conn, data_queue)
-
-    # Start serial thread first
-    serial_thread.start()
-
-    # Start socket thread
-    socket_thread.start()
-
-    try:
-        # No user input needed, data is sent automatically in the threads
-        time.sleep(10)  # Run for 10 seconds (adjust as needed)
-    finally:
-        data_queue.put("EXIT")  # Signal the threads to exit
-        serial_thread.join()
-        socket_thread.join()
+    print(serial_port)
+    time.sleep(2)
+    loop.run_until_complete(bridge(serial_port.device))
