@@ -43,7 +43,7 @@ async def bridge(serial_device):
             print("received CONNECT_TCP")
             break
 
-    tcp_reader, tcp_writer = await asyncio.open_connection('127.0.0.1', 2052)
+    tcp_reader, tcp_writer = await asyncio.open_connection('tinethub.tkbstudios.com', 2052)
 
     serial_writer.write("TCP_CONNECTED\n".encode())
     await serial_writer.drain()
