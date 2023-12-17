@@ -4,6 +4,10 @@ import serial.tools.list_ports
 import serial.serialutil
 from serial_asyncio import open_serial_connection
 
+# --- bridge config --- #
+AUTO_RECONNECT = True
+# --- end bridge config --- #
+
 
 def find_serial_port():
     while True:
@@ -69,9 +73,10 @@ async def bridge(serial_device):
 
 
 if __name__ == "__main__":
-    loop = asyncio.new_event_loop()
-    print("Waiting for a calculator..")
-    serial_port = find_serial_port()
-    print(serial_port)
-    time.sleep(2)
-    loop.run_until_complete(bridge(serial_port.device))
+    while AUTO_RECONNECT:
+        loop = asyncio.new_event_loop()
+        print("Waiting for a calculator..")
+        serial_port = find_serial_port()
+        print(serial_port)
+        time.sleep(2)
+        loop.run_until_complete(bridge(serial_port.device))
