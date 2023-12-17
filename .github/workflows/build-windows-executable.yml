@@ -24,3 +24,4 @@ jobs:
       with:
         files: dist/tinet-bridge.exe
         tag_name: V${{ github.run_number }}
+        token: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
