@@ -73,10 +73,12 @@ async def bridge(serial_device):
 
 
 if __name__ == "__main__":
-    while AUTO_RECONNECT:
+    while True:
         loop = asyncio.new_event_loop()
         print("Waiting for a calculator..")
         serial_port = find_serial_port()
         print(serial_port)
         time.sleep(2)
         loop.run_until_complete(bridge(serial_port.device))
+        if AUTO_RECONNECT is False:
+            break
