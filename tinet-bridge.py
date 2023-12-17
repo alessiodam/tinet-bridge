@@ -21,7 +21,7 @@ def clean_logging_message(message_to_clean: str):
         login_data[0] = login_data[0][:4] + ("*" * 10) + login_data[0][-4:]
         login_data[2] = login_data[2][:4] + ("*" * 50) + login_data[2][-4:]
         clean_message = f"LOGIN:{login_data[0]}:{login_data[1]}:{login_data[2]}"
-    return clean_message
+    return clean_message.strip()
 
 
 async def bridge(serial_device):
