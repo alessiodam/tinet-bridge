@@ -27,12 +27,12 @@ def clean_logging_message(message_to_clean: str):
 async def bridge(serial_device):
     serial_reader, serial_writer = await open_serial_connection(url=serial_device, baudrate=115200)
 
-    serial_writer.write("BRIDGE_CONNECTED\0".encode())
+    serial_writer.write("BRIDGE_CONNECTED\n".encode())
     await serial_writer.drain()
     print("sent BRIDGE_CONNECTED")
 
     while True:
-        line = await serial_reader.read(1024)
+        line = await serial_reader.readline()
         message = str(line, 'utf-8').strip()
         print(message)
         if message == "CONNECT_TCP":
@@ -41,13 +41,13 @@ async def bridge(serial_device):
 
     tcp_reader, tcp_writer = await asyncio.open_connection('127.0.0.1', 2052)
 
-    serial_writer.write("TCP_CONNECTED\0".encode())
+    serial_writer.write("TCP_CONNECTED\n".encode())
     await serial_writer.drain()
     print("sent TCP_CONNECTED")
 
     while True:
         try:
-            serial_data = await serial_reader.read(1024)
+            serial_data = await serial_reader.readline()
         except serial.serialutil.SerialException:
             print("Calculator disconnected")
             break
@@ -58,7 +58,7 @@ async def bridge(serial_device):
         await tcp_writer.drain()
         print(f"transfer to TINET: {clean_logging_message(serial_message)}")
 
-        tcp_data = await tcp_reader.read(1024)
+        tcp_data = await tcp_reader.readline()
         tcp_message = tcp_data.decode()
         print(f"receive from TINET: {clean_logging_message(tcp_message)}")
 
