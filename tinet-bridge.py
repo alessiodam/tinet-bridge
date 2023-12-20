@@ -1,12 +1,19 @@
 import asyncio
+import importlib
+import os
 import time
+from pathlib import Path
+
 import serial.tools.list_ports
 import serial.serialutil
 from serial_asyncio import open_serial_connection
 
 # --- bridge config --- #
 AUTO_RECONNECT = True
+
 # --- end bridge config --- #
+
+plugin_instances = []
 
 
 def find_serial_port():
@@ -25,7 +32,13 @@ def clean_logging_message(message_to_clean: str):
         login_data[0] = login_data[0][:4] + ("*" * 10) + login_data[0][-4:]
         login_data[2] = login_data[2][:4] + ("*" * 50) + login_data[2][-4:]
         clean_message = f"LOGIN:{login_data[0]}:{login_data[1]}:{login_data[2]}"
-    return clean_message.strip()
+    clean_message = clean_message.strip()
+
+    for plugin_instance in plugin_instances:
+        if hasattr(plugin_instance, 'log_call'):
+            plugin_instance.log_call(clean_message)
+
+    return clean_message
 
 
 async def bridge(serial_device):
@@ -43,7 +56,7 @@ async def bridge(serial_device):
             print("received CONNECT_TCP")
             break
 
-    tcp_reader, tcp_writer = await asyncio.open_connection('tinethub.tkbstudios.com', 2052)
+    tcp_reader, tcp_writer = await asyncio.open_connection('localhost', 2052)
 
     serial_writer.write("TCP_CONNECTED\n".encode())
     await serial_writer.drain()
@@ -55,8 +68,10 @@ async def bridge(serial_device):
         except serial.serialutil.SerialException:
             print("Calculator disconnected")
             break
+
         serial_message = str(serial_data, 'utf-8')
-        print(f"receive from calculator: {clean_logging_message(serial_message)}")
+        cleaned_message = clean_logging_message(serial_message)
+        print(f"receive from calculator: {cleaned_message}")
 
         tcp_writer.write(serial_message.encode())
         await tcp_writer.drain()
@@ -69,10 +84,23 @@ async def bridge(serial_device):
         serial_writer.write(tcp_message.encode())
         await serial_writer.drain()
         print(f"transfer to calculator: {clean_logging_message(tcp_message)}")
+
     print("Exiting bridge..")
 
 
 if __name__ == "__main__":
+    os.makedirs("plugins", exist_ok=True)
+
+    for file_path in Path("plugins").glob('*.py'):
+        plugin_name = os.path.basename(file_path)[:-3]
+        print(f"Loading {plugin_name}")
+        try:
+            module = importlib.import_module(f'plugins.{plugin_name}')
+            new_plugin_instance = module.TINETBridgePlugin()
+            plugin_instances.append(new_plugin_instance)
+        except Exception as e:
+            print(f"Error loading plugin from {plugin_name}: {e}")
+
     while True:
         loop = asyncio.new_event_loop()
         print("Waiting for a calculator..")
