@@ -1,0 +1,27 @@
+on:
+  push:
+
+jobs:
+  build:
+    runs-on: ['windows-latest']
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-python@v2
+      with:
+        python-version: 3.11
+
+    - run: pip install -r requirements.txt pyinstaller
+    - run: pyinstaller --onefile --icon=tkbstudios.ico tinet-bridge.py
+    - uses: actions/upload-artifact@v4
+      with:
+        name: tinet-bridge
+        path: dist/tinet-bridge.exe
+
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: "contains(github.event.head_commit.message, 'release')"
+      with:
+        files: dist/tinet-bridge.exe
+        tag_name: V${{ github.run_number }}
+        token: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
